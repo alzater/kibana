@@ -8,17 +8,17 @@ class Kibana:
     def __init__(self):
         self.read_config()
 
-        self.date = "2016-08-01"
+        self.date = "2016-08-02"
 
         self.source_id = 0
         self.source_limit = 9000
 
         self.is_first = True
 
-        self.elastic_url = self.elastic_index + '/getlog/'
+        self.elastic_index = self.elastic_url + '/' + self.date + '/'
+        #self.elastic_index_type = self.elastic_index + self.source_product + '/'
 
         self.debug_break = False
-
 
 
     def read_config(self):
@@ -27,13 +27,41 @@ class Kibana:
 
         self.source_url = cfg_data['source_url']
         self.source_product = cfg_data['source_product']
-        self.elastic_index = cfg_data['elastic_index']
+        self.elastic_url = cfg_data['elastic_index']
+
+
+    def recreate_index(self):
+        print "ELASTIC DELETE INDEX"
+        try:
+            res = requests.delete(self.elastic_index)
+        except:
+            print "DELETE INDEX ERROR!"
+            return
+        print res.text
+
+        print "ELASTIC CREATE INDEX"
+        try:
+            requests.put(self.elastic_index, '{                                         \
+                "settings" : {                                                          \
+                    "number_of_shards" : 1                                              \
+                },                                                                      \
+                "mappings" : {                                                          \
+                    '+ self.source_product +' : {                                       \
+                        "properties" : {                                                \
+                            "comment" : { "type" : "string", "index" : "not_analyzed" } \
+                        }                                                               \
+                    }                                                                   \
+                }                                                                       \
+            }')
+        except:
+            print "CREATE INDEX ERROR!"
+            return
+        print res.text
 
 
     def get_source_data(self):
         source_url = self.source_url + "&date=" + self.date + \
                     "&id="+str(self.source_id)+"&p="+self.source_product+"&limit=" + str(self.source_limit)
-        print source_url
 
         try:
             response = requests.get( source_url )
@@ -72,11 +100,9 @@ class Kibana:
         return row
 
 
-    def create_index(self):
-        res = requests.delete( self.elastic_url)
-        print res
-
     def fill_data(self):
+        self.recreate_index()
+
         while True:
             result = ""
 
@@ -90,7 +116,6 @@ class Kibana:
                 row = self.get_row( source_data )
                 if row == None:
                     return
-                print "ROW", self.source_id
 
                 json_row = json.dumps(row)
 
@@ -98,8 +123,10 @@ class Kibana:
                 result += json_row + '\n'
 
             url = self.elastic_url+ "_bulk"
-            print url
-            ok = requests.post( url, result)
+            try:
+                response = requests.post( url, result)
+            except:
+                print "FAILED TO INSERT DATA IN KIBANA"
 
             if self.debug_break or source_data.line_num != self.source_limit + 1:
                 break
@@ -109,16 +136,3 @@ class Kibana:
 
 kibana = Kibana()
 kibana.fill_data()
-#print requests.delete(kibana.elastic_index);
-#print requests.put( kibana.elastic_index, '{\
-#    "settings" : {                                           \
-#        "number_of_shards" : 1                               \
-#    },                                                       \
-#    "mappings" : {                                           \
-#        "getlog" : {                                          \
-#            "properties" : {                                 \
-#                "comment" : { "type" : "string", "index" : "not_analyzed" }\
-#            }                                                \
-#        }                                                    \
-#    }                                                        \
-#}').text
