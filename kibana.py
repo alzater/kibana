@@ -128,9 +128,7 @@ class Kibana:
         obj[key] = value
 
 
-    def get_row(self, source_data):
-        source_row = source_data.next()
-
+    def get_row(self, source_row):
         if len(source_row) <= 0:
             print "SOURCE ROW ERROR! empty"
             return None
@@ -162,7 +160,7 @@ class Kibana:
             self.first_row = source_data.next()
 
             for source_row in source_data:
-                row = self.get_row( source_data )
+                row = self.get_row( source_row )
                 if row == None:
                     return
 
