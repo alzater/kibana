@@ -8,8 +8,6 @@ class Kibana:
     def __init__(self):
         self.read_config()
 
-        self.date = "2016-08-02"
-
         self.source_id = 0
         self.source_limit = 9000
 
@@ -28,6 +26,7 @@ class Kibana:
         self.source_url = cfg_data['source_url']
         self.source_product = cfg_data['source_product']
         self.elastic_url = cfg_data['elastic_url']
+        self.date = cfg_data['date']
 
 
     def recreate_index(self):
@@ -78,7 +77,37 @@ class Kibana:
         params = fvar.split('&')
         for param in params:
             key, value = param.split('=')
-            row[key] = urllib.unquote(value)
+            self.set_param_to_object(key, urllib.unquote(value), row)
+
+
+    def set_param_to_object(self, key, value, obj):
+        if key == "fevent":
+            key = "event"
+        elif key == "e":
+            key = "event"
+        elif key == "skip":
+            return
+        elif key == "fgamecode":
+            return
+        elif key == "fgametype":
+            return
+        elif key == "frefcode":
+            return
+        elif key == "frefsite1":
+            return
+        elif key == "frefsite2":
+            return
+        elif key == "furi":
+            return
+        elif key == "furlsite":
+            return
+        elif key == "os":
+            key = "fos"
+        elif key == "ts":
+            return
+
+        obj[key] = value
+
 
     def get_row(self, source_data):
         source_row = source_data.next()
@@ -95,7 +124,7 @@ class Kibana:
             if self.first_row[i] == "fvar":
                 self.parse_fvar( source_row[i], row )
             else:
-                row[self.first_row[i]] = source_row[i]
+                self.set_param_to_object(self.first_row[i], source_row[i], row)
             i += 1
 
         return row
