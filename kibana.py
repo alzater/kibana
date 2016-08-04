@@ -8,15 +8,15 @@ class Kibana:
     def __init__(self):
         self.read_config()
 
-        self.source_id = 0
-        self.source_limit = 9000
+        self.source_id = 54239478
+        self.source_limit = 9
 
         self.is_first = True
 
-        self.elastic_index = self.elastic_url + 'dmp-' + self.date + '/'
+        self.elastic_index = self.elastic_url + 'test-' + self.date + '/'
         self.elastic_index_type = self.elastic_index + self.source_product + '/'
 
-        self.debug_break = False
+        self.debug_break = True
 
 
     def read_config(self):
@@ -76,7 +76,10 @@ class Kibana:
     def parse_fvar(self, fvar, row):
         params = fvar.split('&')
         for param in params:
-            key, value = param.split('=')
+            try:
+                key, value = param.split('=')
+            except:
+                continue
             self.set_param_to_object(key, urllib.unquote(value), row)
 
 
@@ -113,8 +116,8 @@ class Kibana:
             value = int(value)
         elif key == "food":
             value = int(value)
-        elif key == "fps":
-            value = int(value)
+        #elif key == "fps":
+        #    value = int(value)
         elif key == "exp":
             value = int(value)
         elif key == "avg_frame_time":
@@ -154,7 +157,7 @@ class Kibana:
 
             source_data = self.get_source_data()
             if source_data == None:
-                return False
+                return
 
             self.first_row = source_data.next()
 
@@ -165,8 +168,9 @@ class Kibana:
 
                 json_row = json.dumps(row)
 
-                result += '{"index":{}}\n'
+                result = '{"index":{}}\n'
                 result += json_row + '\n'
+                print result
 
             url = self.elastic_index_type + "_bulk"
             try:
