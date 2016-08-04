@@ -107,6 +107,20 @@ class Kibana:
             return
         elif key == "amount":
             value = int(value)
+        elif key == "rubies":
+            value = int(value)
+        elif key == "gold":
+            value = int(value)
+        elif key == "food":
+            value = int(value)
+        elif key == "fps":
+            value = int(value)
+        elif key == "exp":
+            value = int(value)
+        elif key == "avg_frame_time":
+            value = int(value)
+        elif key == "max_frame_time":
+            value = int(value)
 
         obj[key] = value
 
