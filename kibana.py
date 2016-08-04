@@ -8,15 +8,15 @@ class Kibana:
     def __init__(self):
         self.read_config()
 
-        self.source_id = 54239478
-        self.source_limit = 9
+        self.source_id = 0
+        self.source_limit = 10000
 
         self.is_first = True
 
         self.elastic_index = self.elastic_url + 'test-' + self.date + '/'
         self.elastic_index_type = self.elastic_index + self.source_product + '/'
 
-        self.debug_break = True
+        self.debug_break = False
 
 
     def read_config(self):
@@ -166,9 +166,8 @@ class Kibana:
 
                 json_row = json.dumps(row)
 
-                result = '{"index":{}}\n'
+                result += '{"index":{}}\n'
                 result += json_row + '\n'
-                print result
 
             url = self.elastic_index_type + "_bulk"
             try:
