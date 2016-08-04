@@ -105,6 +105,8 @@ class Kibana:
             key = "fos"
         elif key == "ts":
             return
+        elif key == "amount":
+            value = int(value)
 
         obj[key] = value
 
