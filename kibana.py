@@ -15,8 +15,8 @@ class Kibana:
 
         self.is_first = True
 
-        self.elastic_index = self.elastic_url + '/' + self.date + '/'
-        #self.elastic_index_type = self.elastic_index + self.source_product + '/'
+        self.elastic_index = self.elastic_url + 'dmp-' + self.date + '/'
+        self.elastic_index_type = self.elastic_index + self.source_product + '/'
 
         self.debug_break = False
 
@@ -27,7 +27,7 @@ class Kibana:
 
         self.source_url = cfg_data['source_url']
         self.source_product = cfg_data['source_product']
-        self.elastic_url = cfg_data['elastic_index']
+        self.elastic_url = cfg_data['elastic_url']
 
 
     def recreate_index(self):
@@ -49,8 +49,9 @@ class Kibana:
                     '+ self.source_product +' : {                                       \
                         "properties" : {                                                \
                             "comment" : { "type" : "string", "index" : "not_analyzed" } \
+                            "type"    : { "type" : "string", "index" : "not_analyzed" } \
                         }                                                               \
-                    }                                                                   \
+                    },                                                                  \
                 }                                                                       \
             }')
         except:
@@ -122,7 +123,7 @@ class Kibana:
                 result += '{"index":{}}\n'
                 result += json_row + '\n'
 
-            url = self.elastic_url+ "_bulk"
+            url = self.elastic_index_type + "_bulk"
             try:
                 response = requests.post( url, result)
             except:
