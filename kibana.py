@@ -9,8 +9,8 @@ from limit import Limit
 
 class Kibana:
     def __init__(self):
-        self.dates = []
         self.products = []
+        self.dates = []
 
         self.source_id_start = 0
         self.source_limit_max = 10000
@@ -38,24 +38,12 @@ class Kibana:
 
         self.source_url = cfg_data['source_url']
         self.elastic_url = cfg_data['elastic_url']
+        self.elastic_type = cfg_data['elastic_type']
         self.index_prefix = cfg_data['index_prefix']
         self.need_recreate_index = cfg_data['recreate_index']
         self.source_id_start = cfg_data['source_id_start']
         self.source_limit_max = cfg_data['source_limit_max']
         self.source_limit_min = cfg_data['source_limit_min']
-
-	if cfg_data.get('dates'):
-            for date in cfg_data['dates']:
-            	self.dates.append( date )
-        elif cfg_data.get('date'):
-            self.dates.append( cfg_data['date'] )
-
-        
-	if cfg_data.get('products'):
-            for product in cfg_data['products']:
-            	self.products.append( product )
-        elif cfg_data.get('product'):
-            self.products.append( cfg_data['product'] )
             
 
     def delete_index(self, date):
@@ -75,12 +63,13 @@ class Kibana:
     def create_index(self, date):
         print "ELASTIC CREATE INDEX"
         try:
+            print self.elastic_type, self.elastic_type
             res = requests.put(self.get_elastic_index(date), '{                           \
                 "settings" : {                                                            \
                     "number_of_shards" : 1                                                \
                 },                                                                        \
                 "mappings" : {                                                            \
-                    "'+ self.elastic_type +'"      :                                       \
+                    "'+ self.elastic_type +'" :{                                          \
                         "properties" : {                                                  \
                             "event"     : { "type" : "string", "index" : "not_analyzed" },\
                             "fproduct"  : { "type" : "string", "index" : "not_analyzed" },\
@@ -201,19 +190,21 @@ class Kibana:
                                int(time[0]), int(time[1]), int(time[2]) )
         return ( dt - datetime.datetime(1970, 1, 1)).total_seconds()
 
-
-    def import_data(self):
-        for date in self.dates:
-            if self.need_recreate_index:
+    def import_data(self, date, product, source_id=None, recr_index=None):
+        if recr_index != None:
+            if recr_index:
                 self.recreate_index(date)
+        elif self.need_recreate_index:
+            self.recreate_index(date)
 
-            for product in self.products:
-                print "NEW FILL! date:", date, "product:", product
+        if source_id != None:
+            self.source_id = source_id
+        else:
+            self.source_id = self.source_id_start
 
-                self.source_id = self.source_id_start
-
-                self.fill_data(date, product)
-
+        print "NEW FILL! date:", date, "product:", product
+        self.source_id = self.source_id_start
+        self.fill_data(date, product)
 
     def fill_data(self, date, product):
         while True:
@@ -263,6 +254,3 @@ class Kibana:
 
             print "NEXT BULK. Current id:", str(self.source_id), "; limit:", limit
 
-
-kibana = Kibana()
-kibana.import_data()
