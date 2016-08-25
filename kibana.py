@@ -5,17 +5,21 @@ import json
 import urllib
 import sys
 import datetime
+from limit import Limit
 
 class Kibana:
     def __init__(self):
         self.dates = []
-        self.source_products = []
-        self.source_start_id = 0
+        self.products = []
+
+        self.source_id_start = 0
+        self.source_limit_max = 10000
+        self.source_limit_min = 10
 
         self.read_config()
 
-        self.source_limit = 10000
-        self.debug_break = False
+        self.limit = Limit(self.source_limit_min, self.source_limit_max)
+
 
 
     def get_elastic_index( self, date ):
@@ -34,7 +38,9 @@ class Kibana:
         self.elastic_url = cfg_data['elastic_url']
         self.index_prefix = cfg_data['index_prefix']
         self.need_recreate_index = cfg_data['recreate_index']
-        self.source_start_id = cfg_data['start_source_id']
+        self.source_id_start = cfg_data['source_id_start']
+        self.source_limit_max = cfg_data['source_limit_max']
+        self.source_limit_min = cfg_data['source_limit_min']
 
 	if cfg_data.get('dates'):
             for date in cfg_data['dates']:
@@ -43,12 +49,11 @@ class Kibana:
             self.dates.append( cfg_data['date'] )
 
         
-	if cfg_data.get('source_products'):
-            for product in cfg_data['source_products']:
-            	self.source_products.append( product )
-        elif cfg_data.get('source_product'):
-
-            self.source_products.append( cfg_data['source_product'] )
+	if cfg_data.get('products'):
+            for product in cfg_data['products']:
+            	self.products.append( product )
+        elif cfg_data.get('product'):
+            self.products.append( cfg_data['product'] )
             
 
     def delete_index(self, date):
@@ -102,7 +107,7 @@ class Kibana:
 
     def get_source_data(self, date, product):
         source_url = self.source_url + "&date=" + date + \
-                    "&id="+str(self.source_id)+"&p="+product+"&limit=" + str(self.source_limit)
+                    "&id="+str(self.source_id)+"&p="+product+"&limit=" + str(self.limit.get())
         try:
             response = requests.get( source_url )
         except KeyboardInterrupt:
@@ -193,17 +198,17 @@ class Kibana:
         dt = datetime.datetime(int(date[0]), int(date[1]), int(date[2]),\
                                int(time[0]), int(time[1]), int(time[2]) )
         return ( dt - datetime.datetime(1970, 1, 1)).total_seconds()
-        
+
 
     def import_data(self):
         for date in self.dates:
             if self.need_recreate_index:
                 self.recreate_index(date)
 
-            for product in self.source_products:
-                print "NEW FILL! date=", date, " product=", product
+            for product in self.products:
+                print "NEW FILL! date:", date, "product:", product
 
-                self.source_id = self.source_start_id
+                self.source_id = self.source_id_start
 
                 self.fill_data(date, product)
 
@@ -211,13 +216,18 @@ class Kibana:
     def fill_data(self, date, product):
         while True:
             result = ""
+            limit = self.limit.get()
             source_data = self.get_source_data(date, product)
+
             if source_data == "FINISH":
-                print "STOPPED BY CLIENT"
+                print "STOPPED"
                 return
             elif source_data == "ERROR":
                 print "Try again! id:", self.source_id
+                self.limit.decrease()
                 continue
+
+            self.limit.increase()
 
             self.first_row = source_data.next()
 
@@ -239,17 +249,17 @@ class Kibana:
             try:
                 response = requests.post(url, result)
             except KeyboardInterrupt:
-                print "STOPPED BY CLIENT"
+                print "STOPPED"
                 return
             except:
                 print "FAILED TO INSERT DATA IN KIBANA"
                 continue
 
-            if self.debug_break or source_data.line_num != self.source_limit + 1:
-		print "FINISH. id: ", self.source_id
+            if source_data.line_num != limit + 1:
+		print "FINISH. id:", self.source_id, "; limit:", limit
                 break
 
-            print "NEXT BULK. Current id: "+str(self.source_id)
+            print "NEXT BULK. Current id:", str(self.source_id), "; limit:", limit
 
 
 kibana = Kibana()
