@@ -1,6 +1,14 @@
 {
-    "date":"yyyy-mm-dd"
-    "source_url":"",
-    "source_product":"",
-    "elastic_url":""
+    "dates":["2016-08-18", "2016-08-17", "2016-08-16", "2016-08-15"],
+    "products":["product1", "product2"],
+
+    "source_url":"http://mysite.org/getlog/csv",
+    "source_id_start":0,
+    "source_limit_max":10000,
+    "source_limit_min":10,
+
+    "elastic_url":"http://localhost:9200/",
+    "recreate_index": true,
+    "index_prefix":"prefix",
+    "kibana_type":"log"
 }

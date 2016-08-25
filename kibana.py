@@ -16,6 +16,8 @@ class Kibana:
         self.source_limit_max = 10000
         self.source_limit_min = 10
 
+        self.elastic_type = "log"
+
         self.read_config()
 
         self.limit = Limit(self.source_limit_min, self.source_limit_max)
@@ -78,7 +80,7 @@ class Kibana:
                     "number_of_shards" : 1                                                \
                 },                                                                        \
                 "mappings" : {                                                            \
-                    "dmplog"      : {                                                     \
+                    "'+ self.elastic_type +'"      :                                       \
                         "properties" : {                                                  \
                             "event"     : { "type" : "string", "index" : "not_analyzed" },\
                             "fproduct"  : { "type" : "string", "index" : "not_analyzed" },\
