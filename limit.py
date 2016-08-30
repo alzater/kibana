@@ -14,7 +14,7 @@ class Limit:
         self.current = self.max
 
     def increase(self):
-        self.current += self.max / 100
+        self.current += self.max / 40
         if self.current > self.max:
             self.current = self.max
 

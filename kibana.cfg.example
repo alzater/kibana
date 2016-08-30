@@ -1,6 +1,7 @@
 {
     "dates":["2016-08-18", "2016-08-17", "2016-08-16", "2016-08-15"],
     "products":["product1", "product2"],
+    "catalogues":["catalogue1", "catalogue2"],
 
     "source_url":"http://mysite.org/getlog/csv",
     "source_id_start":0,

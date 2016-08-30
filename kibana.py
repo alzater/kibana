@@ -11,6 +11,7 @@ class Kibana:
     def __init__(self):
         self.products = []
         self.dates = []
+        self.catalogues = []
 
         self.source_id_start = 0
         self.source_limit_max = 10000
@@ -24,12 +25,13 @@ class Kibana:
 
 
 
-    def get_elastic_index( self, date ):
-        return self.elastic_url + self.index_prefix + '-' + date + '/'
+    def get_elastic_index( self, date, product, catalogue ):
+        return self.elastic_url + self.index_prefix + '-' +\
+               product + '-' + catalogue + '-' + date + '/'
 
 
-    def get_elastic_index_type( self, date, product ):
-        return self.get_elastic_index(date) + product + '/' 
+    def get_elastic_index_type( self, date, product, catalogue ):
+        return self.get_elastic_index(date, product, catalogue) + self.elastic_type + '/' 
 
 
     def read_config(self):
@@ -44,27 +46,30 @@ class Kibana:
         self.source_id_start = cfg_data['source_id_start']
         self.source_limit_max = cfg_data['source_limit_max']
         self.source_limit_min = cfg_data['source_limit_min']
+
+        for catalogue in cfg_data['catalogues']:
+            self.catalogues.append(catalogue)
             
 
-    def delete_index(self, date):
+    def delete_index(self, date, product, catalogue):
         if self.need_recreate_index == False:
             print "RECREATE INDEX: false"
             return
 
         print "ELASTIC DELETE INDEX"
         try:
-            res = requests.delete(self.get_elastic_index(date))
+            res = requests.delete(self.get_elastic_index(date, product, catalogue))
         except:
             print "DELETE INDEX ERROR!"
             return
         print res.text
 
 
-    def create_index(self, date):
+    def create_index(self, date, product, catalogue):
         print "ELASTIC CREATE INDEX"
+        print self.get_elastic_index(date, product, catalogue)
         try:
-            print self.elastic_type, self.elastic_type
-            res = requests.put(self.get_elastic_index(date), '{                           \
+            res = requests.put(self.get_elastic_index(date, product, catalogue), '{       \
                 "settings" : {                                                            \
                     "number_of_shards" : 1                                                \
                 },                                                                        \
@@ -80,7 +85,8 @@ class Kibana:
                             "frefcode"  : { "type" : "string", "index" : "not_analyzed" },\
                             "frefsite1" : { "type" : "string", "index" : "not_analyzed" },\
                             "frefsite2" : { "type" : "string", "index" : "not_analyzed" },\
-                            "type"      : { "type" : "string", "index" : "not_analyzed" } \
+                            "type"      : { "type" : "string", "index" : "not_analyzed" },\
+                            "datetime"  : { "type" : "date", "format" : "yyyy-MM-dd HH:mm:ss" }\
                         }                                                                 \
                     }                                                                     \
                 }                                                                         \
@@ -91,14 +97,15 @@ class Kibana:
         print res.text
 
 
-    def recreate_index(self, date):
-        self.delete_index(date)
-        self.create_index(date)
+    def recreate_index(self, date, product, catalogue):
+        self.delete_index(date, product, catalogue)
+        self.create_index(date, product, catalogue)
 
 
-    def get_source_data(self, date, product):
+    def get_source_data(self, date, product, catalogue):
         source_url = self.source_url + "&date=" + date + \
-                    "&id="+str(self.source_id)+"&p="+product+"&limit=" + str(self.limit.get())
+                    "&id="+str(self.source_id)+"&p="+product+\
+                    "&limit=" + str(self.limit.get())+"&pc="+catalogue
         try:
             response = requests.get( source_url )
         except KeyboardInterrupt:
@@ -183,34 +190,35 @@ class Kibana:
         return row
 
 
-    def get_utime(self, row):
+    def get_datetime(self, row):
         date = row['date'].split('-')
         time = row['ftime'].split(':')
         dt = datetime.datetime(int(date[0]), int(date[1]), int(date[2]),\
                                int(time[0]), int(time[1]), int(time[2]) )
-        return ( dt - datetime.datetime(1970, 1, 1)).total_seconds()
+        return str(dt)
 
     def import_data(self, date, product, source_id=None, recr_index=None):
-        if recr_index != None:
-            if recr_index:
-                self.recreate_index(date)
-        elif self.need_recreate_index:
-            self.recreate_index(date)
+        if recr_index == None:
+            recr_index = self.need_recreate_index
 
         if source_id != None:
             self.source_id = source_id
         else:
             self.source_id = self.source_id_start
 
-        print "NEW FILL! date:", date, "product:", product
-        self.source_id = self.source_id_start
-        self.fill_data(date, product)
+        for catalogue in self.catalogues:
+            print "NEW FILL! date:", date, "product:", product, "catalogue:", catalogue
+            if recr_index:
+                self.recreate_index(date, product, catalogue)
 
-    def fill_data(self, date, product):
+            self.source_id = self.source_id_start
+            self.fill_data(date, product, catalogue)
+
+    def fill_data(self, date, product, catalogue):
         while True:
             result = ""
             limit = self.limit.get()
-            source_data = self.get_source_data(date, product)
+            source_data = self.get_source_data(date, product, catalogue)
 
             if source_data == "FINISH":
                 print "STOPPED"
@@ -231,14 +239,14 @@ class Kibana:
                     continue
                 
                 row['date'] = date
-                row['utime'] = self.get_utime(row)
+                row['datetime'] = self.get_datetime(row)
 
                 json_row = json.dumps(row)
 
                 result += '{"index":{}}\n'
                 result += json_row + '\n'
 
-            url = self.get_elastic_index_type(date, product) + "_bulk"
+            url = self.get_elastic_index_type(date, product, catalogue) + "_bulk"
             try:
                 response = requests.post(url, result)
             except KeyboardInterrupt:

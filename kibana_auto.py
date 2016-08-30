@@ -18,22 +18,22 @@ class Kibana_auto:
             self.loop()
 
     def loop(self):
-        print "sleep time", self.time, datetime.today().time()
         if self.date == datetime.now().date():
-            print "sleep date", str(self.date), datetime.today().date()
+            print "sleep", datetime.today().time()
             sleep(60*60)
             return
 
         if self.time > datetime.today().time():
-            print "sleep time", self.time, datetime.today().time()
+            print "sleep", datetime.today().time()
             sleep(60*60)
             return
 
         kibana = Kibana()
-
+        
+        recreate_index = True
         for product in self.products:
-            #kibana.import_data(self.date, product, 0)
-            print "import"
+            kibana.import_data( str(self.date), product, 0, recreate_index )
+            recreate_index = False
 
         self.date = datetime.today().date()
 
