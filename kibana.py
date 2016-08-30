@@ -11,7 +11,7 @@ class Kibana:
     def __init__(self):
         self.products = []
         self.dates = []
-        self.catalogues = []
+        self.catalogues = {}
 
         self.source_id_start = 0
         self.source_limit_max = 10000
@@ -46,9 +46,7 @@ class Kibana:
         self.source_id_start = cfg_data['source_id_start']
         self.source_limit_max = cfg_data['source_limit_max']
         self.source_limit_min = cfg_data['source_limit_min']
-
-        for catalogue in cfg_data['catalogues']:
-            self.catalogues.append(catalogue)
+        self.catalogues = cfg_data['catalogues']
             
 
     def delete_index(self, date, product, catalogue):
@@ -67,7 +65,7 @@ class Kibana:
 
     def create_index(self, date, product, catalogue):
         print "ELASTIC CREATE INDEX"
-        print self.get_elastic_index(date, product, catalogue)
+
         try:
             res = requests.put(self.get_elastic_index(date, product, catalogue), '{       \
                 "settings" : {                                                            \
@@ -206,7 +204,12 @@ class Kibana:
         else:
             self.source_id = self.source_id_start
 
-        for catalogue in self.catalogues:
+        if self.catalogues.get(product):
+            catalogues = self.catalogues[product]
+        else:
+            catalogues = self.catalogues['default']
+
+        for catalogue in catalogues:
             print "NEW FILL! date:", date, "product:", product, "catalogue:", catalogue
             if recr_index:
                 self.recreate_index(date, product, catalogue)
