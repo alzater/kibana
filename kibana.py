@@ -5,6 +5,7 @@ import json
 import urllib
 import sys
 import datetime
+import codecs
 from limit import Limit
 
 class Kibana:
@@ -195,14 +196,11 @@ class Kibana:
                                int(time[0]), int(time[1]), int(time[2]) )
         return str(dt)
 
+
     def import_data(self, date, product, source_id=None, recr_index=None):
         if recr_index == None:
             recr_index = self.need_recreate_index
 
-        if source_id != None:
-            self.source_id = source_id
-        else:
-            self.source_id = self.source_id_start
 
         if self.catalogues.get(product):
             catalogues = self.catalogues[product]
@@ -214,11 +212,17 @@ class Kibana:
             if recr_index:
                 self.recreate_index(date, product, catalogue)
 
-            self.source_id = self.source_id_start
+            if source_id != None:
+                self.source_id = source_id
+            else:
+                self.source_id = self.source_id_start
+
             self.fill_data(date, product, catalogue)
+
 
     def fill_data(self, date, product, catalogue):
         while True:
+            exception = False
             result = ""
             limit = self.limit.get()
             source_data = self.get_source_data(date, product, catalogue)
@@ -234,20 +238,28 @@ class Kibana:
             self.limit.increase()
 
             self.first_row = source_data.next()
-
-            for source_row in source_data:
-                row = self.get_row( source_row )
-                if row == None:
-                    print "ERROR! Failed to get row."
-                    continue
+            areAll = False
+            while not areAll:
+                areAll = True
+                try:
+                    for source_row in source_data:
+                        row = self.get_row( source_row )
+                        if row == None:
+                            print "ERROR! Failed to get row."
+                            continue
                 
-                row['date'] = date
-                row['datetime'] = self.get_datetime(row)
+                        row['date'] = date
+                        row['datetime'] = self.get_datetime(row)
 
-                json_row = json.dumps(row)
+                        json_row = json.dumps(row)
 
-                result += '{"index":{}}\n'
-                result += json_row + '\n'
+                        result += '{"index":{}}\n'
+                        result += json_row + '\n'
+                except:
+                    print "EXCEPTION! Failed to get row. id:", self.source_id
+                    if source_data.line_num != limit + 1:
+                        areAll = False
+
 
             url = self.get_elastic_index_type(date, product, catalogue) + "_bulk"
             try:
@@ -258,7 +270,7 @@ class Kibana:
             except:
                 print "FAILED TO INSERT DATA IN KIBANA"
                 continue
-
+            
             if source_data.line_num != limit + 1:
 		print "FINISH. id:", self.source_id, "; limit:", limit
                 break

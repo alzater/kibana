@@ -2,7 +2,7 @@ class Limit:
     def __init__(self, lmin, lmax):
         self.min = lmin
         self.max = lmax
-        self.current = 10000
+        self.current = lmax
 
         self.bound_top = lmax
         self.bound_bottom = lmin
