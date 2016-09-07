@@ -27,7 +27,7 @@ class Kibana:
 
 
     def read_config(self):
-        cfg = open('kibana.cfg', 'r')
+        cfg = open('../config/kibana.cfg', 'r')
         cfg_data = json.loads(cfg.read())
 
         self.source_url = cfg_data['source_url']

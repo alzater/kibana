@@ -38,7 +38,7 @@ class Kibana_auto:
         self.date = datetime.today().date()
 
     def read_config(self):
-        cfg = open('kibana.cfg', 'r')
+        cfg = open('../config/kibana.cfg', 'r')
         cfg_data = json.loads(cfg.read())
 
         self.products = cfg_data['products']
