@@ -1,2 +1,4 @@
 #!/bin/bash
-python src/kibana_auto.py
+
+cd src
+python kibana_auto.py

@@ -1,2 +1,4 @@
 #!/bin/bash
-python src/kibana_manual.py $@
+
+cd src
+python kibana_manual.py $@
