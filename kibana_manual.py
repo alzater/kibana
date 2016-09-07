@@ -12,7 +12,6 @@ def import_data():
     start_id = 0
     if len(sys.argv) >= 3:
         start_id = int(sys.argv[2])
-    print start_id
 
     recreate_index = True
     if len(sys.argv) >= 4:

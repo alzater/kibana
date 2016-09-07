@@ -1,12 +1,6 @@
 import requests
-import StringIO
-import csv
 import json
-import urllib
-import sys
-import datetime
-import codecs
-from limit import Limit
+from source_reader import SourceReader
 
 class Kibana:
     def __init__(self):
@@ -21,9 +15,6 @@ class Kibana:
         self.elastic_type = "log"
 
         self.read_config()
-
-        self.limit = Limit(self.source_limit_min, self.source_limit_max)
-
 
 
     def get_elastic_index( self, date, product, catalogue ):
@@ -101,106 +92,9 @@ class Kibana:
         self.create_index(date, product, catalogue)
 
 
-    def get_source_data(self, date, product, catalogue):
-        source_url = self.source_url + "&date=" + date + \
-                    "&id="+str(self.source_id)+"&p="+product+\
-                    "&limit=" + str(self.limit.get())+"&pc="+catalogue
-        try:
-            response = requests.get( source_url )
-        except KeyboardInterrupt:
-            print "FINISH"
-            return "FINISH"
-        except:
-            print "GET_SOURCE_DATA ERROR! id=" + str(self.source_id)
-            return "ERROR"
-
-        if response.status_code != 200:
-            print "GET_SOURCE_DATA ERROR! code=" + str(response.status_code) + \
-                " text=" + response.text
-            return "ERROR"
- 
-        stream = StringIO.StringIO( response.text )
-        return csv.reader( stream, delimiter=',' )
-
-
-    def parse_fvar(self, fvar, row):
-        params = fvar.split('&')
-        for param in params:
-            try:
-                key, value = param.split('=')
-            except:
-                continue
-            self.set_param_to_object(key, urllib.unquote(value), row)
-
-
-    def set_param_to_object(self, key, value, obj):
-        if key == "fevent":
-            key = "event"
-        elif key == "e":
-            key = "event"
-        elif key == "skip":
-            return
-        elif key == "fgamecode":
-            return
-        elif key == "fgametype":
-            return
-        elif key == "furi":
-            return
-        elif key == "os":
-            key = "fos"
-        elif key == "ts":
-            return
-        elif key == "amount":
-            value = int(value)
-        elif key == "rubies":
-            value = int(value)
-        elif key == "gold":
-            value = int(value)
-        elif key == "food":
-            value = int(value)
-        #elif key == "fps":
-        #    value = int(value)
-        elif key == "exp":
-            value = int(value)
-        elif key == "avg_frame_time":
-            value = int(value)
-        elif key == "max_frame_time":
-            value = int(value)
-
-        obj[key] = value
-
-
-    def get_row(self, source_row):
-        if len(source_row) <= 0:
-            print "SOURCE ROW ERROR! empty"
-            return None
-
-        self.source_id = int(source_row[0]) + 1
-
-        row = {}
-        i = 0
-        while i < len(source_row):
-            if self.first_row[i] == "fvar":
-                self.parse_fvar( source_row[i], row )
-            else:
-                self.set_param_to_object(self.first_row[i], source_row[i], row)
-            i += 1
-
-        return row
-
-
-    def get_datetime(self, row):
-        date = row['date'].split('-')
-        time = row['ftime'].split(':')
-        dt = datetime.datetime(int(date[0]), int(date[1]), int(date[2]),\
-                               int(time[0]), int(time[1]), int(time[2]) )
-        return str(dt)
-
-
     def import_data(self, date, product, source_id=None, recr_index=None):
         if recr_index == None:
             recr_index = self.need_recreate_index
-
 
         if self.catalogues.get(product):
             catalogues = self.catalogues[product]
@@ -221,59 +115,26 @@ class Kibana:
 
 
     def fill_data(self, date, product, catalogue):
+        reader = SourceReader(date, product, catalogue, self.source_url, self.source_id)
+        reader.set_limit(self.source_limit_min, self.source_limit_max)
+
         while True:
-            exception = False
-            result = ""
-            limit = self.limit.get()
-            source_data = self.get_source_data(date, product, catalogue)
-
-            if source_data == "FINISH":
-                print "STOPPED"
+            result = reader.next_bulk()
+            if result == None:
                 return
-            elif source_data == "ERROR":
-                print "Try again! id:", self.source_id
-                self.limit.decrease()
-                continue
 
-            self.limit.increase()
-
-            self.first_row = source_data.next()
-            areAll = False
-            while not areAll:
-                areAll = True
-                try:
-                    for source_row in source_data:
-                        row = self.get_row( source_row )
-                        if row == None:
-                            print "ERROR! Failed to get row."
-                            continue
-                
-                        row['date'] = date
-                        row['datetime'] = self.get_datetime(row)
-
-                        json_row = json.dumps(row)
-
-                        result += '{"index":{}}\n'
-                        result += json_row + '\n'
-                except:
-                    print "EXCEPTION! Failed to get row. id:", self.source_id
-                    if source_data.line_num != limit + 1:
-                        areAll = False
-
-
+            bulk = ""
+            for record in result:
+                bulk += '{"index":{}}\n'
+                bulk += record + '\n'
+            
             url = self.get_elastic_index_type(date, product, catalogue) + "_bulk"
             try:
-                response = requests.post(url, result)
+                response = requests.post(url, bulk)
             except KeyboardInterrupt:
                 print "STOPPED"
                 return
             except:
                 print "FAILED TO INSERT DATA IN KIBANA"
                 continue
-            
-            if source_data.line_num != limit + 1:
-		print "FINISH. id:", self.source_id, "; limit:", limit
-                break
-
-            print "NEXT BULK. Current id:", str(self.source_id), "; limit:", limit
 
