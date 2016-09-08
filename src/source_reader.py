@@ -16,10 +16,15 @@ class SourceReader:
         self.index = index
 
         self.is_last = False
+        
+        
+    def set_log(self, log):
+        self.log = log
 
 
     def set_limit(self, limit_min, limit_max):
         self.limit = Limit(limit_min, limit_max)
+
 
     def next_bulk(self):
         if self.is_last:
@@ -36,27 +41,29 @@ class SourceReader:
             self.first_row = data.next()
             
             result = []
-            #try:
-            for cur_row in data:
-                row = self._get_row( cur_row )
-                if row == None:
-                    print "ERROR! Failed to get row."
-                    continue
-                
-                row['date'] = self.date
-                row['datetime'] = self._get_datetime(row)
+            try:
+                for cur_row in data:
+                    row = self._get_row( cur_row )
+                    if row == None:
+                        self.log("ERROR! Failed to get row.")
+                        continue
+                    
+                    row['date'] = self.date
+                    row['datetime'] = self._get_datetime(row)
 
-                json_row = json.dumps(row)
+                    json_row = json.dumps(row)
 
-                result.append(json_row)
-            #except:
-            #    print "EXCEPTION! Failed to get row. id:", self.index
-            #    if data.line_num != limit + 1:
-            #        fullBulk = False
+                    result.append(json_row)
+            except:
+                self.log("EXCEPTION! Failed to get row. id=["+str(self.index)+"]")
+                if data.line_num != limit + 1:
+                    fullBulk = False
             
         if data.line_num != limit + 1:
-	    print "FINISH. id:", self.index, "; limit:", limit
-            self.is_last = True
+	        self.log("FINISH. id=["+str(self.index)+"] limit=["+str(limit))+"]"
+	        self.is_last = True
+        else:
+            self.log("Bulk got. id=["+str(self.index)+"] limit=["+str(limit)+"]")
 
         return result
 
@@ -69,16 +76,16 @@ class SourceReader:
             try:
                 response = requests.get(url)
             except KeyboardInterrupt:
-                print "FINISH"
+                self.log("FINISH")
                 return None, 0
             except:
-                print "GET_DATA ERROR! id=" + str(self.index)
+                self.log("GET_DATA ERROR! id=" + str(self.index))
                 self.limit.decrease()
                 continue
 
             if response.status_code != 200:
-                print "GET_DATA ERROR! code=" + str(response.status_code) + \
-                    " text=" + response.text
+                self.log( "GET_DATA ERROR! code=" + str(response.status_code) + \
+                    " text=" + response.text)
                 self.limit.decrease()
                 continue
 
@@ -91,7 +98,7 @@ class SourceReader:
 
     def _get_row(self, data):
         if len(data) <= 0:
-            print "ROW ERROR! empty"
+            self.log("ROW ERROR! empty")
             return None
 
         self.index = int(data[0]) + 1
@@ -152,7 +159,7 @@ class SourceReader:
         elif key == "food":
             value = int(value)
         elif key == "fps":
-            value = int(value)
+            value = float(value)
         elif key == "exp":
             value = int(value)
         elif key == "avg_frame_time":

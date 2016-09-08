@@ -7,6 +7,7 @@ from datetime import datetime, date, time
 
 class Kibana_auto:
     def __init__(self):
+        self.logger = Logger("auto-"+str(datetime.now().strftime('%Y-%m-%d_%H:%M:%S')))
         self.time = time(4)
         if len(sys.argv) >= 2:
             self.time = time(int(sys.argv[1]))
@@ -19,12 +20,12 @@ class Kibana_auto:
 
     def loop(self):
         if self.date == datetime.now().date():
-            print "sleep", datetime.today().time()
+            self.logger.logln("sleep"+str(datetime.today().time()))
             sleep(60*60)
             return
 
         if self.time > datetime.today().time():
-            print "sleep", datetime.today().time()
+            self.logger.logln("sleep"+str(datetime.today().time()))
             sleep(60*60)
             return
 

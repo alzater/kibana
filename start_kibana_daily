@@ -1,4 +1,5 @@
 #!/bin/bash
 
-cd src
+cd $1/src
+
 python kibana_daily.py

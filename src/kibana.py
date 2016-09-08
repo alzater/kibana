@@ -3,7 +3,8 @@ import json
 from source_reader import SourceReader
 
 class Kibana:
-    def __init__(self):
+    def __init__(self, log):
+        self.log = log
         self.products = []
         self.dates = []
         self.catalogues = {}
@@ -43,20 +44,20 @@ class Kibana:
 
     def delete_index(self, date, product, catalogue):
         if self.need_recreate_index == False:
-            print "RECREATE INDEX: false"
+            self.log("RECREATE INDEX: false")
             return
 
-        print "ELASTIC DELETE INDEX"
+        self.log("ELASTIC DELETE INDEX")
         try:
             res = requests.delete(self.get_elastic_index(date, product, catalogue))
         except:
-            print "DELETE INDEX ERROR!"
+            self.log("DELETE INDEX ERROR!")
             return
-        print res.text
+        self.log(res.text)
 
 
     def create_index(self, date, product, catalogue):
-        print "ELASTIC CREATE INDEX"
+        self.log("ELASTIC CREATE INDEX")
 
         try:
             res = requests.put(self.get_elastic_index(date, product, catalogue), '{       \
@@ -82,9 +83,9 @@ class Kibana:
                 }                                                                         \
             }')
         except:
-            print "CREATE INDEX ERROR!"
+            self.log("CREATE INDEX ERROR!")
             return
-        print res.text
+        self.log(res.text)
 
 
     def recreate_index(self, date, product, catalogue):
@@ -102,7 +103,7 @@ class Kibana:
             catalogues = self.catalogues['default']
 
         for catalogue in catalogues:
-            print "NEW FILL! date:", date, "product:", product, "catalogue:", catalogue
+            self.log("NEW FILL! date:"+date+" product:"+product+" catalogue:"+catalogue)
             if recr_index:
                 self.recreate_index(date, product, catalogue)
 
@@ -116,6 +117,7 @@ class Kibana:
 
     def fill_data(self, date, product, catalogue):
         reader = SourceReader(date, product, catalogue, self.source_url, self.source_id)
+        reader.set_log(self.log)
         reader.set_limit(self.source_limit_min, self.source_limit_max)
 
         while True:
@@ -132,9 +134,9 @@ class Kibana:
             try:
                 response = requests.post(url, bulk)
             except KeyboardInterrupt:
-                print "STOPPED"
+                self.log("STOPPED")
                 return
             except:
-                print "FAILED TO INSERT DATA IN KIBANA"
+                self.log("FAILED TO INSERT DATA IN KIBANA")
                 continue
 
