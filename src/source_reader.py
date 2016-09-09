@@ -30,16 +30,15 @@ class SourceReader:
         if self.is_last:
             return None
 
+        data, limit = self._get_data()
+        if data == None:
+            return None
+
+        self.first_row = data.next()    
+   
         fullBulk = False
         while not fullBulk:
-            fullBulk = True
-
-            data, limit = self._get_data()
-            if data == None:
-                return None
-
-            self.first_row = data.next()
-            
+            fullBulk = True           
             result = []
             try:
                 for cur_row in data:
@@ -60,7 +59,7 @@ class SourceReader:
                     fullBulk = False
             
         if data.line_num != limit + 1:
-	        self.log("FINISH. id=["+str(self.index)+"] limit=["+str(limit))+"]"
+	        self.log("FINISH. id=["+str(self.index)+"] limit=["+str(limit)+"]")
 	        self.is_last = True
         else:
             self.log("Bulk got. id=["+str(self.index)+"] limit=["+str(limit)+"]")
@@ -151,6 +150,10 @@ class SourceReader:
         elif key == "ts":
             return
         elif key == "amount":
+            value = int(value)
+        elif key == "credits":
+            value = int(value)
+        elif key == "level":
             value = int(value)
         elif key == "rubies":
             value = int(value)
