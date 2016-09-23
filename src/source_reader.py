@@ -5,7 +5,9 @@ import urllib
 import json
 import urllib
 import datetime
+
 from limit import Limit
+from source_iterator import SourceIterator
 
 class SourceReader:
     def __init__(self, date, product, catalogue, url, index):
@@ -24,6 +26,10 @@ class SourceReader:
 
     def set_limit(self, limit_min, limit_max):
         self.limit = Limit(limit_min, limit_max)
+        
+        
+    def set_iter(self, iter_type, index):
+        self.iter = SourceIterator(iter_type, index)
 
 
     def next_bulk(self):
@@ -54,15 +60,15 @@ class SourceReader:
 
                     result.append(json_row)
             except:
-                self.log("EXCEPTION! Failed to get row. id=["+str(self.index)+"]")
+                self.log("EXCEPTION! Failed to get row. id=["+str(self.iter.get())+"]")
                 if data.line_num != limit + 1:
                     fullBulk = False
             
         if data.line_num != limit + 1:
-	        self.log("FINISH. id=["+str(self.index)+"] limit=["+str(limit)+"]")
+	        self.log("FINISH. id=["+str(self.iter.get())+"] limit=["+str(limit)+"]")
 	        self.is_last = True
         else:
-            self.log("Bulk got. id=["+str(self.index)+"] limit=["+str(limit)+"]")
+            self.log("Bulk got. id=["+str(self.iter.get())+"] limit=["+str(limit)+"]")
 
         return result
 
@@ -70,7 +76,7 @@ class SourceReader:
     def _get_data(self):
         while True:
             url = self.url + "&date=" + self.date + \
-                    "&id="+str(self.index)+"&p="+self.product+\
+                    +self.iter.getStr()+"&p="+self.product+\
                     "&limit=" + str(self.limit.get())+"&pc="+self.catalogue
             try:
                 response = requests.get(url)
@@ -78,7 +84,7 @@ class SourceReader:
                 self.log("FINISH")
                 return None, 0
             except:
-                self.log("GET_DATA ERROR! id=" + str(self.index))
+                self.log("GET_DATA ERROR! id=" + str(self.iter.get()))
                 self.limit.decrease()
                 continue
 
@@ -100,7 +106,7 @@ class SourceReader:
             self.log("ROW ERROR! empty")
             return None
 
-        self.index = int(data[0]) + 1
+        self.iter.set(int(data[0]))
 
         row = {}
         i = 0

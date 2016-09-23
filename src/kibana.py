@@ -159,11 +159,12 @@ class Kibana:
             product = product_name
             
         for param in params:
-            url = self.source_server
+            url = self.source_server + '?' + self.source_params[param]
             
-            #reader = SourceReader(date, product, catalogue, self.source_url, self.source_id)
+            reader = SourceReader(date, product, catalogue, url, self.source_id)
             reader.set_log(self.log)
             reader.set_limit(self.source_limit_min, self.source_limit_max)
+            reader.set_iter(type, self.source_id)
             
             while True:
                 result = reader.next_bulk()
