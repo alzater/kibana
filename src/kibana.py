@@ -8,6 +8,7 @@ class Kibana:
 
         if self.read_config() == False:
             self.log("Error! Failed to load config! Exit!")
+            return
 
 
     def get_elastic_index( self, date, product_name, catalogue ):
@@ -23,11 +24,11 @@ class Kibana:
 
 
     def read_config(self):
-        cfg = open('../config/kibana.cfg', 'r')
+        cfg = open('../config/kibana_new.cfg', 'r')
         cfg_data = json.loads(cfg.read())
 
         self.names = cfg_data.get('names')
-        if names == None:
+        if self.names == None:
             return False
         self.products = cfg_data.get('products')
         if self.products == None:
@@ -36,7 +37,7 @@ class Kibana:
         if self.catalogues == None:
             return False
         self.source_server = cfg_data.get('source_server')
-        if self.server == None:
+        if self.source_server == None:
             return False
         self.source_params = cfg_data.get('source_params')
         if self.source_params == None:
@@ -46,6 +47,9 @@ class Kibana:
             return False
         self.logins = cfg_data.get('logins')
         if self.logins == None:
+            return False
+        self.iter_types = cfg_data.get('iter_types')
+        if self.iter_types == None:
             return False
         self.source_id_start = cfg_data.get('source_id_start')
         if self.source_id_start == None:
@@ -130,8 +134,8 @@ class Kibana:
     def import_data(self, date, product_name, source_id=None, recr_index=None):
         if recr_index == None:
             recr_index = self.need_recreate_index
-
-        catalogues = self.catalogues.get(product_name):
+            
+        catalogues = self.catalogues.get(product_name)
         if catalogues == None:
             catalogues = self.catalogues['default']
 
@@ -149,7 +153,7 @@ class Kibana:
             self.fill_data(date, product_name, catalogue)
 
 
-    #def fill_data(self, date, product_name, catalogue):
+    def fill_data(self, date, product_name, catalogue):
         params = self.params.get(product_name)
         if params == None:
             params = self.params['default']
@@ -158,13 +162,17 @@ class Kibana:
         if product == None:
             product = product_name
             
+        iter_type = self.iter_types.get(product_name)
+        if iter_type == None:
+            iter_type = self.iter_types['default']
+            
         for param in params:
             url = self.source_server + '?' + self.source_params[param]
             
             reader = SourceReader(date, product, catalogue, url, self.source_id)
             reader.set_log(self.log)
             reader.set_limit(self.source_limit_min, self.source_limit_max)
-            reader.set_iter(type, self.source_id)
+            reader.set_iter(iter_type, self.source_id)
             
             while True:
                 result = reader.next_bulk()

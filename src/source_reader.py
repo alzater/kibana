@@ -60,15 +60,15 @@ class SourceReader:
 
                     result.append(json_row)
             except:
-                self.log("EXCEPTION! Failed to get row. id=["+str(self.iter.get())+"]")
+                self.log("EXCEPTION! Failed to get row. id=["+self.iter.get_str()+"]")
                 if data.line_num != limit + 1:
                     fullBulk = False
             
         if data.line_num != limit + 1:
-	        self.log("FINISH. id=["+str(self.iter.get())+"] limit=["+str(limit)+"]")
+	        self.log("FINISH. id=["+self.iter.get_str()+"] limit=["+str(limit)+"]")
 	        self.is_last = True
         else:
-            self.log("Bulk got. id=["+str(self.iter.get())+"] limit=["+str(limit)+"]")
+            self.log("Bulk got. id=["+self.iter.get_str()+"] limit=["+str(limit)+"]")
 
         return result
 
@@ -76,16 +76,18 @@ class SourceReader:
     def _get_data(self):
         while True:
             url = self.url + "&date=" + self.date + \
-                    +self.iter.getStr()+"&p="+self.product+\
+                    self.iter.get_param()+"&p="+self.product+\
                     "&limit=" + str(self.limit.get())+"&pc="+self.catalogue
+            print url
             try:
                 response = requests.get(url)
             except KeyboardInterrupt:
                 self.log("FINISH")
                 return None, 0
             except:
-                self.log("GET_DATA ERROR! id=" + str(self.iter.get()))
+                self.log("GET_DATA ERROR! id=[" + self.iter.get_str()) + "]"
                 self.limit.decrease()
+                sleep(1)
                 continue
 
             if response.status_code != 200:
@@ -106,7 +108,7 @@ class SourceReader:
             self.log("ROW ERROR! empty")
             return None
 
-        self.iter.set(int(data[0]))
+        self.iter.set(data[0])
 
         row = {}
         i = 0
