@@ -5,19 +5,22 @@ import urllib
 import json
 import urllib
 import datetime
+import md5
 
 from limit import Limit
 from source_iterator import SourceIterator
 
 class SourceReader:
-    def __init__(self, date, product, catalogue, url, index):
+    def __init__(self, date, product, catalogue, url, index, login_data):
         self.date = date
         self.product = product
         self.catalogue = catalogue
         self.url = url
         self.index = index
-
+        self.login_data = login_data
+        
         self.is_last = False
+        self.auth = False
         
         
     def set_log(self, log):
@@ -75,12 +78,11 @@ class SourceReader:
 
     def _get_data(self):
         while True:
-            url = self.url + "&date=" + self.date + \
-                    self.iter.get_param()+"&p="+self.product+\
-                    "&limit=" + str(self.limit.get())+"&pc="+self.catalogue
+            url = self._get_url()
             print url
             try:
                 response = requests.get(url)
+                print response.text
             except KeyboardInterrupt:
                 self.log("FINISH")
                 return None, 0
@@ -179,6 +181,57 @@ class SourceReader:
             value = int(value)
 
         obj[key] = value
+        
+        
+    def _get_url(self):
+        params = "date=" + self.date + \
+                 self.iter.get_param()+"&p="+self.product+\
+                 "&limit=" + str(self.limit.get())+"&pc="+self.catalogue
+        params = self._add_auth(params)
+        
+        url = self.url + "&" + params
+        return url
+        
+        
+    def _add_auth(self, params):
+        if self.login_data == None:
+            return params
+        if self.login_data.get('login') == None:
+            return params
+        if self.login_data.get('password') == None:
+            return params
+            
+        if self.auth == False:
+            if self._auth() != True:
+                return params
 
+        params += '&login=' + self.login_data['login']
 
+        data = params.split('&')
+        data.sort()
+        data = ''.join(data)
+        data += self.login_data['password']
+        
+        sign = md5.new(data).hexdigest()
+        params += '&sign=' + sign
+        print sign
+        
+        return params
+        
+    
+    def _auth(self):
+        url = self.url.split('?')[0]
+        url += '?method=auth'
+        url += '&login=' + self.login_data['login']
+        url += '&password=' + self.login_data['password']
+        
+        try:
+            print url
+            response = requests.get(url)
+            print response.text
+        except:
+            return False
+        
+        return True
+        
 

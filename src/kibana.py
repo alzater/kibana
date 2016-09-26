@@ -162,6 +162,8 @@ class Kibana:
         if product == None:
             product = product_name
             
+        login_data = self.logins.get(product_name)
+            
         iter_type = self.iter_types.get(product_name)
         if iter_type == None:
             iter_type = self.iter_types['default']
@@ -169,7 +171,7 @@ class Kibana:
         for param in params:
             url = self.source_server + '?' + self.source_params[param]
             
-            reader = SourceReader(date, product, catalogue, url, self.source_id)
+            reader = SourceReader(date, product, catalogue, url, self.source_id, login_data)
             reader.set_log(self.log)
             reader.set_limit(self.source_limit_min, self.source_limit_max)
             reader.set_iter(iter_type, self.source_id)

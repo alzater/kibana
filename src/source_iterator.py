@@ -16,7 +16,7 @@ class SourceIterator:
         if self.iter_type == 'id':
             return str(self.current)
         if self.iter_type == 'HH:MM:SS':
-            return self._getTimeStr()
+            return self._get_time_str()
         return ''
         
         
