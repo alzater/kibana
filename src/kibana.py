@@ -155,6 +155,7 @@ class Kibana:
 
     def fill_data(self, date, product_name, catalogue):
         params = self.params.get(product_name)
+        print product_name, params
         if params == None:
             params = self.params['default']
         
@@ -167,8 +168,9 @@ class Kibana:
         iter_type = self.iter_types.get(product_name)
         if iter_type == None:
             iter_type = self.iter_types['default']
-            
+        print params  
         for param in params:
+            print param
             url = self.source_server + '?' + self.source_params[param]
             
             reader = SourceReader(date, product, catalogue, url, self.source_id, login_data)
@@ -179,7 +181,7 @@ class Kibana:
             while True:
                 result = reader.next_bulk()
                 if result == None:
-                    return
+                    break
 
                 bulk = ""
                 for record in result:

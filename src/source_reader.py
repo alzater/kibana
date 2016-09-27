@@ -33,6 +33,7 @@ class SourceReader:
         
     def set_iter(self, iter_type, index):
         self.iter = SourceIterator(iter_type, index)
+        self.iter_type = iter_type
 
 
     def next_bulk(self):
@@ -49,23 +50,23 @@ class SourceReader:
         while not fullBulk:
             fullBulk = True           
             result = []
-            try:
-                for cur_row in data:
-                    row = self._get_row( cur_row )
-                    if row == None:
-                        self.log("ERROR! Failed to get row.")
-                        continue
-                    
-                    row['date'] = self.date
-                    row['datetime'] = self._get_datetime(row)
+            #try:
+            for cur_row in data:
+                row = self._get_row( cur_row )
+                if row == None:
+                    self.log("ERROR! Failed to get row.")
+                    continue
+                
+                row['date'] = self.date
+                row['datetime'] = self._get_datetime(row)
 
-                    json_row = json.dumps(row)
+                json_row = json.dumps(row)
 
-                    result.append(json_row)
-            except:
-                self.log("EXCEPTION! Failed to get row. id=["+self.iter.get_str()+"]")
-                if data.line_num != limit + 1:
-                    fullBulk = False
+                result.append(json_row)
+            #except:
+            #    self.log("EXCEPTION! Failed to get row. id=["+self.iter.get_str()+"]")
+            #    if data.line_num != limit + 1:
+            #        fullBulk = False
             
         if data.line_num != limit + 1:
 	        self.log("FINISH. id=["+self.iter.get_str()+"] limit=["+str(limit)+"]")
@@ -79,10 +80,8 @@ class SourceReader:
     def _get_data(self):
         while True:
             url = self._get_url()
-            print url
             try:
                 response = requests.get(url)
-                print response.text
             except KeyboardInterrupt:
                 self.log("FINISH")
                 return None, 0
@@ -109,8 +108,11 @@ class SourceReader:
         if len(data) <= 0:
             self.log("ROW ERROR! empty")
             return None
-
-        self.iter.set(data[0])
+            
+        if self.iter_type == 'id':
+            self.iter.set(data[0])
+        else:
+            self.iter.set(data[1])
 
         row = {}
         i = 0
@@ -226,9 +228,7 @@ class SourceReader:
         url += '&password=' + self.login_data['password']
         
         try:
-            print url
             response = requests.get(url)
-            print response.text
         except:
             return False
         

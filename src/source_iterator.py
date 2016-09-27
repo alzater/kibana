@@ -30,7 +30,7 @@ class SourceIterator:
               
     def set(self, last):
         if self.iter_type == 'HH:MM:SS':
-            self.current = _get_time_from_str(last) + 1
+            self.current = self._get_time_from_str(last) + 1
             return
         if self.iter_type == 'id':
             self.current = int(last) + 1
@@ -55,8 +55,8 @@ class SourceIterator:
     def _get_time_from_str(self, time_str):
         res = 0
         splited = time_str.split(':')
-        res += int(splited[0] * 60 * 60)
-        res += int(splited[1] * 60)
+        res += int(splited[0]) * 60 * 60
+        res += int(splited[1]) * 60
         res += int(splited[2])
         return res
         
