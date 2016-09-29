@@ -50,23 +50,23 @@ class SourceReader:
         while not fullBulk:
             fullBulk = True           
             result = []
-            #try:
-            for cur_row in data:
-                row = self._get_row( cur_row )
-                if row == None:
-                    self.log("ERROR! Failed to get row.")
-                    continue
-                
-                row['date'] = self.date
-                row['datetime'] = self._get_datetime(row)
+            try:
+                for cur_row in data:
+                    row = self._get_row( cur_row )
+                    if row == None:
+                        self.log("ERROR! Failed to get row.")
+                        continue
+                    
+                    row['date'] = self.date
+                    row['datetime'] = self._get_datetime(row)
 
-                json_row = json.dumps(row)
+                    json_row = json.dumps(row)
 
-                result.append(json_row)
-            #except:
-            #    self.log("EXCEPTION! Failed to get row. id=["+self.iter.get_str()+"]")
-            #    if data.line_num != limit + 1:
-            #        fullBulk = False
+                    result.append(json_row)
+            except:
+                self.log("EXCEPTION! Failed to get row. id=["+self.iter.get_str()+"]")
+                if data.line_num != limit + 1:
+                    fullBulk = False
             
         if data.line_num != limit + 1:
 	        self.log("FINISH. id=["+self.iter.get_str()+"] limit=["+str(limit)+"]")
@@ -114,7 +114,7 @@ class SourceReader:
         else:
             self.iter.set(data[1])
 
-        row = {}
+        row = self._init_row()
         i = 0
         while i < len(data):
             if self.first_row[i] == "fvar":
@@ -216,7 +216,6 @@ class SourceReader:
         
         sign = md5.new(data).hexdigest()
         params += '&sign=' + sign
-        print sign
         
         return params
         
@@ -233,5 +232,13 @@ class SourceReader:
             return False
         
         return True
+        
+        
+    def _init_row(self):
+        row = {}
+        row['name'] = ""
+        row['comment'] = ""
+
+        return row
         
 
