@@ -12,7 +12,7 @@ class KibanaHourly:
 
 
     def _read_config(self):
-        names = [ 'glads2_mm', 'glads2_gp']
+        names = ['glads2_mm', 'glads2_gp', 'glads2_vk']
 
         return names
 

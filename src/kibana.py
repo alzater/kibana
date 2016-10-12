@@ -117,6 +117,7 @@ class Kibana:
                             "frefsite2" : { "type" : "string", "index" : "not_analyzed" },\
                             "type"      : { "type" : "string", "index" : "not_analyzed" },\
                             "name"      : { "type" : "string", "index" : "not_analyzed" },\
+                            "stat_uuid" : { "type" : "string", "index" : "not_analyzed" },\
                             "datetime"  : { "type" : "date", "format" : "yyyy-MM-dd HH:mm:ss" }\
                         }                                                                 \
                     }                                                                     \

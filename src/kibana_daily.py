@@ -19,6 +19,7 @@ class KibanaDaily:
 
     def import_data(self):
         try:
+            #yesterday = '2016-10-01'
             yesterday = date.today() - timedelta(1)
             names = self._read_config()
             kibana = Kibana(self.logger.logln)

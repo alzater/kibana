@@ -145,6 +145,8 @@ class SourceReader:
 
 
     def _add_param(self, key, value, obj):
+        if key == "fid":
+            value = int(value)
         if key == "fevent":
             key = "event"
         elif key == "e":
