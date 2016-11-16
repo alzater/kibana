@@ -11,7 +11,7 @@ class KibanaDaily:
 
 
     def _read_config(self):
-        cfg = open('../config/kibana_new.cfg', 'r')
+        cfg = open('../config/kibana.cfg', 'r')
         cfg_data = json.loads(cfg.read())
 
         return cfg_data['names']

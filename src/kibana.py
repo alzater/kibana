@@ -34,7 +34,7 @@ class Kibana:
 
 
     def read_config(self):
-        cfg = open('../config/kibana_new.cfg', 'r')
+        cfg = open('../config/kibana.cfg', 'r')
         cfg_data = json.loads(cfg.read())
 
         self.names = cfg_data.get('names')
