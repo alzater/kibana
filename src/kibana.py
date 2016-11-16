@@ -5,10 +5,20 @@ from source_reader import SourceReader
 class Kibana:
     def __init__(self, log):
         self.log = log
+        self.beg_time = None
+        self.end_time = None
 
         if self.read_config() == False:
             self.log("Error! Failed to load config! Exit!")
             return
+            
+            
+    def set_beg_time(self, time):
+        self.beg_time = time
+    
+    
+    def set_end_time(self, time):
+        self.end_time = time
 
 
     def get_elastic_index( self, date, product_name, catalogue ):
@@ -118,6 +128,7 @@ class Kibana:
                             "type"      : { "type" : "string", "index" : "not_analyzed" },\
                             "name"      : { "type" : "string", "index" : "not_analyzed" },\
                             "stat_uuid" : { "type" : "string", "index" : "not_analyzed" },\
+                         "event_detail" : { "type" : "string", "index" : "not_analyzed" },\
                             "datetime"  : { "type" : "date", "format" : "yyyy-MM-dd HH:mm:ss" }\
                         }                                                                 \
                     }                                                                     \
@@ -175,6 +186,8 @@ class Kibana:
             url = self.source_server + '?' + self.source_params[param]
             
             reader = SourceReader(date, product, catalogue, url, self.source_id, login_data)
+            reader.set_beg_time( self.beg_time )
+            reader.set_end_time( self.end_time )
             reader.set_log(self.log)
             reader.set_limit(self.source_limit_min, self.source_limit_max)
             reader.set_iter(iter_type, self.source_id)

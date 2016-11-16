@@ -24,13 +24,15 @@ class SourceIterator:
         if self.iter_type == 'id':
             return "&id="+ str(self.current)
         if self.iter_type == 'HH:MM:SS':
-            return "&beg_time="+ self._get_time_str()
+            tmp = "&beg_time="+ self._get_time_str()
+            self.current += 60 * 60
+            return tmp
         return ''
         
               
     def set(self, last):
         if self.iter_type == 'HH:MM:SS':
-            self.current = self._get_time_from_str(last) + 1
+            #self.current = self._get_time_from_str(last) + 1
             return
         if self.iter_type == 'id':
             self.current = int(last) + 1

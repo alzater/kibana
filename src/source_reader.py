@@ -7,6 +7,8 @@ import urllib
 import datetime
 import md5
 
+from time import sleep
+
 from limit import Limit
 from source_iterator import SourceIterator
 
@@ -22,7 +24,18 @@ class SourceReader:
         self.is_last = False
         self.auth = False
         
+        self.beg_time = None
+        self.end_time = None
         
+    
+    def set_beg_time(self, time):
+        self.beg_time = time
+    
+    
+    def set_end_time(self, time):
+        self.end_time = time
+      
+          
     def set_log(self, log):
         self.log = log
 
@@ -34,6 +47,8 @@ class SourceReader:
     def set_iter(self, iter_type, index):
         self.iter = SourceIterator(iter_type, index)
         self.iter_type = iter_type
+        if self.iter_type == 'HH:MM:SS':
+            self.hour = 0
 
 
     def next_bulk(self):
@@ -46,15 +61,19 @@ class SourceReader:
 
         self.first_row = data.next()    
    
+        lines = 0
         fullBulk = False
         while not fullBulk:
             fullBulk = True           
             result = []
             try:
                 for cur_row in data:
+                    lines += 1
                     row = self._get_row( cur_row )
                     if row == None:
                         self.log("ERROR! Failed to get row.")
+                        continue
+                    if row == 'ignore':
                         continue
                     
                     row['date'] = self.date
@@ -65,12 +84,16 @@ class SourceReader:
                     result.append(json_row)
             except:
                 self.log("EXCEPTION! Failed to get row. id=["+self.iter.get_str()+"]")
-                if data.line_num != limit + 1:
+                if lines != limit:
                     fullBulk = False
+                    
+        if self.iter_type == 'HH:MM:SS':
+            self.hour += 1
             
-        if data.line_num != limit + 1:
-	        self.log("FINISH. id=["+self.iter.get_str()+"] limit=["+str(limit)+"]")
-	        self.is_last = True
+        if lines < 2:
+            if not (self.iter_type == 'HH:MM:SS' and self.hour <= 24):
+	            self.log("FINISH. id=["+self.iter.get_str()+"] limit=["+str(limit)+"]")
+	            self.is_last = True
         else:
             self.log("Bulk got. id=["+self.iter.get_str()+"] limit=["+str(limit)+"]")
 
@@ -86,7 +109,7 @@ class SourceReader:
                 self.log("FINISH")
                 return None, 0
             except:
-                self.log("GET_DATA ERROR! id=[" + self.iter.get_str()) + "]"
+                self.log("GET_DATA ERROR! id=[" + self.iter.get_str() + "]")
                 self.limit.decrease()
                 sleep(1)
                 continue
@@ -100,7 +123,7 @@ class SourceReader:
             limit = self.limit.get()
             self.limit.increase()
             
-            stream = StringIO.StringIO( response.text )
+            stream = StringIO.StringIO( response.text.encode('utf-8') )
             return csv.reader( stream, delimiter=',' ), limit
 
 
@@ -122,6 +145,8 @@ class SourceReader:
             else:
                 self._add_param(self.first_row[i], data[i], row)
             i += 1
+        
+        self._preprocess_row(row)
 
         return row
 
@@ -151,6 +176,10 @@ class SourceReader:
             key = "event"
         elif key == "e":
             key = "event"
+        elif key == "ed":
+            key = "event_detail"
+        elif key == "fevent_detail":
+            key = "event_detail"
         elif key == "skip":
             return
         elif key == "fgamecode":
@@ -165,6 +194,8 @@ class SourceReader:
             return
         elif key == "amount":
             value = int(value)
+        elif key == "famountusd":
+            value = float(value)/100 
         elif key == "credits":
             value = int(value)
         elif key == "level":
@@ -184,6 +215,7 @@ class SourceReader:
         elif key == "max_frame_time":
             value = int(value)
 
+
         obj[key] = value
         
         
@@ -191,6 +223,11 @@ class SourceReader:
         params = "date=" + self.date + \
                  self.iter.get_param()+"&p="+self.product+\
                  "&limit=" + str(self.limit.get())+"&pc="+self.catalogue
+        if self.beg_time != None:
+            params += "&beg_time=" + str(self.beg_time)
+        if self.end_time != None:
+            params += "&end_time=" + str(self.end_time)
+            
         params = self._add_auth(params)
         
         url = self.url + "&" + params
@@ -240,7 +277,31 @@ class SourceReader:
         row = {}
         row['name'] = ""
         row['comment'] = ""
+        row['event_detail'] = ""
 
         return row
+        
+    def _preprocess_row(self, row):
+        # Rule1: Count our profit
+        if row['event'] == 'deposit':
+            if row['fproduct'] == 'glads2_vk':
+                row['profit'] = float(row['famount']) * 2.91
+            if row['fproduct'] == 'glads2_ok':
+                row['profit'] = float(row['famount']) * 0.42
+            if row['fproduct'] == 'glads2_mm':
+                row['profit'] = float(row['famount']) * 0.42
+
+        # Rule2: Remove test users
+        if row['fuid'] == 232946 or \
+           row['fuid'] == 257158814382854806 or \
+           row['fuid'] == 7255913029939607050 or \
+           row['fuid'] == 5819770344824394920 or \
+           row['fuid'] == 72213 or \
+           row['fuid'] == 32256090 or \
+           row['fuid'] == 14926854930002548513:
+            row = 'ignore'
+            
+            
+    
         
 
