@@ -214,6 +214,12 @@ class SourceReader:
             value = int(value)
         elif key == "max_frame_time":
             value = int(value)
+        elif key == "price":
+            value = float(value)
+        elif key == "amount_free":
+            value = int(value)
+        elif key == "amount_pay":
+            value = int(value)
 
 
         obj[key] = value
