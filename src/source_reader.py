@@ -171,8 +171,6 @@ class SourceReader:
 
 
     def _add_param(self, key, value, obj):
-        elif key == "amount":
-            value = int(value)
         obj[key] = value
 
 
@@ -312,7 +310,14 @@ class SourceReader:
 
 
     def _parse_amount_rule(self, row):
-        #TODO
+        if row.get('amount'):
+            if row.get('event') == 'deposit' or \
+               (row.get('event') == 'realin' and row.get('event_detail') == 'first') or \
+               (row.get('event') == 'realin' and row.get('event_detail') == 'product'):
+                self._convert_value_to_float(row, 'amount')
+            else:
+                self._convert_value_to_int(row, 'amount')
+
 
     def _convert_values_rule(self, row):
         if row.get('famountusd'):
