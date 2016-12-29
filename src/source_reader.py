@@ -20,30 +20,30 @@ class SourceReader:
         self.url = url
         self.index = index
         self.login_data = login_data
-        
+
         self.is_last = False
         self.auth = False
-        
+
         self.beg_time = None
         self.end_time = None
-        
-    
+
+
     def set_beg_time(self, time):
         self.beg_time = time
-    
-    
+
+
     def set_end_time(self, time):
         self.end_time = time
-      
-          
+
+
     def set_log(self, log):
         self.log = log
 
 
     def set_limit(self, limit_min, limit_max):
         self.limit = Limit(limit_min, limit_max)
-        
-        
+
+
     def set_iter(self, iter_type, index):
         self.iter = SourceIterator(iter_type, index)
         self.iter_type = iter_type
@@ -59,12 +59,12 @@ class SourceReader:
         if data == None:
             return None
 
-        self.first_row = data.next()    
-   
+        self.first_row = data.next()
+
         lines = 0
         fullBulk = False
         while not fullBulk:
-            fullBulk = True           
+            fullBulk = True
             result = []
             #try:
             for cur_row in data:
@@ -75,7 +75,7 @@ class SourceReader:
                     continue
                 if row == 'ignore':
                     continue
-                  
+
                 row['date'] = self.date
                 row['datetime'] = self._get_datetime(row)
 
@@ -86,14 +86,14 @@ class SourceReader:
             #    self.log("EXCEPTION! Failed to get row. id=["+self.iter.get_str()+"]")
             #    if lines != limit:
             #        fullBulk = False
-                    
+
         if self.iter_type == 'HH:MM:SS':
             self.hour += 1
-            
+
         if lines < 2:
             if not (self.iter_type == 'HH:MM:SS' and self.hour <= 24):
-	            self.log("FINISH. id=["+self.iter.get_str()+"] limit=["+str(limit)+"]")
-	            self.is_last = True
+                self.log("FINISH. id=["+self.iter.get_str()+"] limit=["+str(limit)+"]")
+                self.is_last = True
         else:
             self.log("Bulk got. id=["+self.iter.get_str()+"] limit=["+str(limit)+"]")
 
@@ -138,15 +138,12 @@ class SourceReader:
             self.iter.set(data[1])
 
         row = self._init_row()
-        self._preprocess_row(row)
 
         i = 0
         while i < len(data):
-            if self.first_row[i] == "fvar":
-                self._parse_fvar( data[i], row )
-            else:
-                self._add_param(self.first_row[i], data[i], row)
+            self._add_param(self.first_row[i], data[i], row)
             i += 1
+        self._apply_rules_to_row(row)
 
         return row
 
@@ -157,17 +154,6 @@ class SourceReader:
         dt = datetime.datetime(int(date[0]), int(date[1]), int(date[2]),\
                                int(time[0]), int(time[1]), int(time[2]) )
         return str(dt)
-
-
-    def _parse_fvar(self, fvar, row):
-        params = fvar.split('&')
-        print params
-        for param in params:
-            try:
-                key, value = param.split('=')
-            except:
-                continue
-            self._add_param(key, urllib.unquote(value), row)
 
 
     def _add_param(self, key, value, obj):
@@ -234,7 +220,9 @@ class SourceReader:
         return row
 
 
-    def _preprocess_row(self, row):
+    def _apply_rules_to_row(self, row):
+        self._parse_fvar_rule(row)
+
         self._parse_event_rule(row)
         self._parse_event_detail_rule(row)
         self._parse_uid_rule(row)
@@ -246,46 +234,61 @@ class SourceReader:
         self._parse_amount_rule(row)
 
 
+    def _parse_fvar_rule(self, row):
+        if row.get('fvar') == None:
+            return
+
+        params = row['fvar'].split('&')
+        for param in params:
+            try:
+                key, value = param.split('=')
+            except:
+                continue
+            row[key] = urllib.unquote(value)
+
+        del row['fvar']
+
+
     def _parse_event_rule(self, row):
         if row.get('fevent'):
             row['event'] = row['fevent']
-            row.remove('fevent')
+            del row['fevent']
         elif row.get('e'):
             row['event'] = row['e']
-            row.remove('e')
+            del row['e']
 
 
-    def _parse_event_detail_rule(self, row)
+    def _parse_event_detail_rule(self, row):
         if row.get("ed"):
             row['event_detail'] = row['ed']
-            row.remove('ed')
+            del row['ed']
         elif row.get("fevent_detail"):
             row['event_detail'] = row['fevent_detail']
-            row.remove('fevent_detail')
+            del row['fevent_detail']
 
 
     def _parse_uid_rule(self, row):
-        if key == "fid":
-            value = int(value)
+        if row.get('fid'):
+            row['fid'] = int(row['fid'])
 
 
     def _delete_unused_params_rule(self, row):
         if row.get('skip'):
-            row.remove('skip')
+            del row['skip']
         if row.get('fgamecode'):
-            row.remove('fgamecode')
+            del row['fgamecode']
         if row.get('fgametype'):
-            row.remove('fgametype'):
+            del row['fgametype']
         if row.get('furi'):
-            row.remove('furi')
+            del row['furi']
         if row.get('ts'):
-            row.remove('ts')
+            del row['ts']
 
 
     def _rename_keys_rule(self, row):
         if row.get('os'):
             row['fos'] = row['os']
-            row.remove('os')
+            del row['os']
 
 
     def _count_profit_rule(self, row):
@@ -299,14 +302,15 @@ class SourceReader:
 
 
     def _remove_test_users_rule(self, row):
-        if row['fuid'] == "232946" or \
-           row['fuid'] == "257158814382854806" or \
-           row['fuid'] == "7255913029939607050" or \
-           row['fuid'] == "5819770344824394920" or \
-           row['fuid'] == "72213" or \
-           row['fuid'] == "32256090" or \
-           row['fuid'] == "14926854930002548513":
+        if row['fuid'] == 232946 or \
+           row['fuid'] == 257158814382854806 or \
+           row['fuid'] == 7255913029939607050 or \
+           row['fuid'] == 5819770344824394920 or \
+           row['fuid'] == 72213 or \
+           row['fuid'] == 32256090 or \
+           row['fuid'] == 14926854930002548513:
             row = 'ignore'
+            print "USER_REMOVED"
 
 
     def _parse_amount_rule(self, row):
@@ -321,7 +325,7 @@ class SourceReader:
 
     def _convert_values_rule(self, row):
         if row.get('famountusd'):
-            row['famountusd'] = float(row['famountusd') / 100
+            row['famountusd'] = float(row['famountusd']) / 100
 
         self._convert_value_to_float(row, 'fps')
         self._convert_value_to_float(row, 'price')
@@ -340,10 +344,10 @@ class SourceReader:
 
     def _convert_value_to_int(self, row, key):
         if row.get(key):
-            row[key] = int(row[key)
+            row[key] = int(row[key])
 
 
     def _convert_value_to_float(self, row, key):
         if row.get(key):
-            row[key] = float(row[key)
+            row[key] = float(row[key])
 
