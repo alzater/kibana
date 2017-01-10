@@ -1,6 +1,9 @@
 import sys
 import argparse
 import json
+from datetime import date, timedelta, datetime
+from logger import Logger
+from kibana import Kibana
 
 
 class Configurator:
@@ -10,9 +13,10 @@ class Configurator:
         self._read_config()
         self._parse_params()
         if self._inits():
-            print 'success'
+            print 'Configurating successed'
         else:
-            print 'fail'
+            print 'Configurating failed'
+            return
         self._set_kibana()
         self._import_data()
 
@@ -65,15 +69,16 @@ class Configurator:
         self.cfg_data = json.loads(cfg.read())
 
     def _set_kibana(self):
-        self.kibana = Kibana(self.main_params, self.source_params, self.source_limit_params, self.import_params, None) # self.logger
+        self.logger = Logger("manual-"+str(datetime.now().strftime('%Y-%m-%d_%H:%M:%S')))
+        self.kibana = Kibana(self.main_params, self.source_params, self.source_limit_params, self.import_params, self.logger.logln)
 
     def _import_data(self):
-        self.kibana._import_data()
+        self.kibana.import_data()
 
     def _inits(self):
         self.main_params = {}
         self.source_params = {}
-        self.soutce_limit_params = {}
+        self.source_limit_params = {}
         self.import_params = {}
 
         result = True
@@ -84,6 +89,7 @@ class Configurator:
 
         result = result and self._init_logins()
         result = result and self._init_iter_types()
+        
         result = result and self._init_recreate_index()
         result = result and self._init_beg_time()
         result = result and self._init_end_time()
@@ -93,10 +99,13 @@ class Configurator:
 
         result = result and self._init_source_limit_max()
         result = result and self._init_source_limit_min()
-
+        print result
         result = result and self._init_elastic_url()
         result = result and self._init_index_prefix()
         result = result and self._init_elastic_type()
+        
+        self.source_params['params'] = self.cfg_data['params']
+        self.source_params['source_params'] = self.cfg_data['source_params']
 
         return result
 
@@ -113,8 +122,11 @@ class Configurator:
 
     def _init_dates(self):
         if self.param_data['dates'] == None:
-            return False
-        self.main_params['dates'] = self.param_data['dates']
+            yesterday = []
+            yesterday.append( str(date.today() - timedelta(1)) )
+            self.main_params['dates'] = yesterday
+        else:
+            self.main_params['dates'] = self.param_data['dates']
         return True
 
 
@@ -133,19 +145,19 @@ class Configurator:
     def _init_products(self):
         if self.cfg_data.get('products') == None:
             return False
-        self.main_pararms['products'] = self.cfg_data['products']
+        self.main_params['products'] = self.cfg_data['products']
         return True
 
 
     def _init_logins(self):
-        if self.cfg_data.('logins') == None:
+        if self.cfg_data.get('logins') == None:
             return False
         self.source_params['logins'] = self.cfg_data['logins']
         return True
 
 
     def _init_iter_types(self):
-        if self.cfg_data.('iter_types') == None:
+        if self.cfg_data.get('iter_types') == None:
             return False
         self.source_params['iter_types'] = self.cfg_data['iter_types']
         return True
@@ -162,45 +174,35 @@ class Configurator:
     def _init_beg_time(self):
         if self.param_data.get('beg_time') != None:
             self.source_params['beg_time'] = self.param_data['beg_time']
-            return True
-        if self.cfg_data.get('beg_time') != None:
-            self.source_params['beg_time'] = self.cfg_data['beg_time']
-            return True
-        return False
+        else:
+            self.source_params['beg_time'] = None
+        return True
 
     def _init_end_time(self):
         if self.param_data.get('end_time') != None:
             self.source_params['end_time'] = self.param_data['end_time']
-            return True
-        if self.cfg_data.get('end_time') != None:
-            self.source_params['end_time'] = self.cfg_data['end_time']
-            return True
-        return False
+        else:
+            self.source_params['beg_time'] = None
+        return True
 
     def _init_start_id(self):
         if self.param_data.get('start_id') != None:
             self.source_params['start_id'] = self.param_data['start_id']
             return True
-        if self.cfg_data.get('start_id') != None:
-            self.source_params['start_id'] = self.cfg_data['start_id']
+        if self.cfg_data.get('source_id_start') != None:
+            self.source_params['start_id'] = self.cfg_data['source_id_start']
             return True
         return False
 
     def _init_id_interval(self):
-        if self.param_data.get('id_interval') != None:
-            self.source_params['id_interval'] = self.param_data['id_interval']
-            return True
-        if self.cfg_data.get('id_interval') != None:
-            self.source_params['id_interval'] = self.cfg_data['id_interval']
-            return True
-        return False
+        return True
 
     def _init_source_url(self):
         if self.param_data.get('source_url') != None:
             self.source_params['source_url'] = self.param_data['source_url']
             return True
-        if self.cfg_data.get('source_url') != None:
-            self.source_params['source_url'] = self.cfg_data['source_url']
+        if self.cfg_data.get('source_server') != None:
+            self.source_params['source_url'] = self.cfg_data['source_server']
             return True
         return False
 
@@ -226,7 +228,7 @@ class Configurator:
         if self.param_data.get('elastic_url') != None:
             self.import_params['elastic_url'] = self.param_data['elastic_url']
             return True
-        if self.cfg_data.get('elasgtic_url') != None:
+        if self.cfg_data.get('elastic_url') != None:
             self.import_params['elastic_url'] = self.cfg_data['elastic_url']
             return True
         return False
@@ -244,7 +246,9 @@ class Configurator:
         if self.param_data.get('elastic_type') != None:
             self.import_params['elastic_type'] = self.param_data['elastic_type']
             return True
-        if self.cfg_data.get('elasgtic_type') != None:
+        if self.cfg_data.get('elastic_type') != None:
             self.import_params['elastic_type'] = self.cfg_data['elastic_type']
             return True
         return False
+        
+Configurator()

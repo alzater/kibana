@@ -3,91 +3,29 @@ import json
 from source_reader import SourceReader
 
 class Kibana:
-    def __init__(self, log):
+    def __init__(self, main_params, source_params, source_limit_params, import_params, log):
         self.log = log
-        self.beg_time = None
-        self.end_time = None
-
-        if self.read_config() == False:
-            self.log("Error! Failed to load config! Exit!")
-            return
-            
-            
-    def set_beg_time(self, time):
-        self.beg_time = time
-    
-    
-    def set_end_time(self, time):
-        self.end_time = time
+        self.main_params = main_params
+        self.source_params = source_params
+        self.source_limit_params = source_limit_params
+        self.import_params = import_params
 
 
     def get_elastic_index( self, date, product_name, catalogue ):
-        return self.elastic_url + self.index_prefix + '-' +\
+        return self.import_params['elastic_url'] + self.import_params['index_prefix'] + '-' +\
                product_name + '-' + catalogue + '-' + date + '/'
 
 
     def get_elastic_index_type( self, date, product_name, catalogue ):
-        elastic_type = self.elastic_type.get(product_name)
+        elastic_type = self.import_params['elastic_type'].get(product_name)
         if elastic_type == None:
-            elastic_type = self.elastic_type['default']
+            elastic_type = self.import_params['elastic_type']
         return self.get_elastic_index(date, product_name, catalogue) + elastic_type + '/' 
-
-
-    def read_config(self):
-        cfg = open('../config/kibana.cfg', 'r')
-        cfg_data = json.loads(cfg.read())
-
-        self.names = cfg_data.get('names')
-        if self.names == None:
-            return False
-        self.products = cfg_data.get('products')
-        if self.products == None:
-            return False
-        self.catalogues = cfg_data.get('catalogues')
-        if self.catalogues == None:
-            return False
-        self.source_server = cfg_data.get('source_server')
-        if self.source_server == None:
-            return False
-        self.source_params = cfg_data.get('source_params')
-        if self.source_params == None:
-            return False
-        self.params = cfg_data.get('params')
-        if self.params == None:
-            return False
-        self.logins = cfg_data.get('logins')
-        if self.logins == None:
-            return False
-        self.iter_types = cfg_data.get('iter_types')
-        if self.iter_types == None:
-            return False
-        self.source_id_start = cfg_data.get('source_id_start')
-        if self.source_id_start == None:
-            return False
-        self.source_limit_max = cfg_data.get('source_limit_max')
-        if self.source_limit_max == None:
-            return False
-        self.source_limit_min= cfg_data.get('source_limit_min')
-        if self.source_limit_min == None:
-            return False
-        self.elastic_url = cfg_data.get('elastic_url')
-        if self.elastic_url == None:
-            return False
-        self.need_recreate_index = cfg_data.get('recreate_index')
-        if self.need_recreate_index == None:
-            return False
-        self.index_prefix = cfg_data.get('index_prefix')
-        if self.index_prefix == None:
-            return False
-        self.elastic_type = cfg_data.get('elastic_type')
-        if self.elastic_type == None:
-            return False
-        return True
 
             
 
     def delete_index(self, date, product_name, catalogue):
-        if self.need_recreate_index == False:
+        if self.source_params['recreate_index'] == False:
             self.log("RECREATE INDEX: false")
             return
 
@@ -103,9 +41,9 @@ class Kibana:
     def create_index(self, date, product_name, catalogue):
         self.log("ELASTIC CREATE INDEX")
         
-        elastic_type = self.elastic_type.get(product_name)
+        elastic_type = self.import_params['elastic_type'].get(product_name)
         if elastic_type == None:
-            elastic_type = self.elastic_type['default']
+            elastic_type = self.import_params['elastic_type']['default']
         try:
             res = requests.put(self.get_elastic_index(date, product_name, catalogue), '{  \
                 "settings" : {                                                            \
@@ -145,52 +83,45 @@ class Kibana:
         self.create_index(date, product_name, catalogue)
 
 
-    def import_data(self, date, product_name, source_id=None, recr_index=None):
-        if recr_index == None:
-            recr_index = self.need_recreate_index
-            
-        catalogues = self.catalogues.get(product_name)
-        if catalogues == None:
-            catalogues = self.catalogues['default']
+    def import_data(self):
 
-        for catalogue in catalogues:
-            self.log("NEW FILL! date:"+date+" product_name:"+product_name+" catalogue:"+catalogue)
-            
-            if recr_index:
-                self.recreate_index(date, product_name, catalogue)
 
-            if source_id != None:
-                self.source_id = source_id
-            else:
-                self.source_id = self.source_id_start
+        for date in self.main_params['dates']:
+            for product_name in self.main_params['names']:
+                catalogues = self.main_params['catalogues'].get(product_name)
+                if catalogues == None:
+                    catalogues = self.main_params['catalogues']['default']
 
-            self.fill_data(date, product_name, catalogue)
+                for catalogue in catalogues:
+                    self.log("NEW FILL! date:"+date+" product_name:"+product_name+" catalogue:"+catalogue)
+                    self.recreate_index(date, product_name, catalogue)
+                    self.fill_data(date, product_name, catalogue)
 
 
     def fill_data(self, date, product_name, catalogue):
-        params = self.params.get(product_name)
+        params = self.source_params['params'].get(product_name)
         if params == None:
-            params = self.params['default']
+            params = self.source_params['params']['default']
         
-        product = self.products.get(product_name)
+        product = self.main_params['products'].get(product_name)
         if product == None:
             product = product_name
             
-        login_data = self.logins.get(product_name)
+        login_data = self.source_params['logins'].get(product_name)
             
-        iter_type = self.iter_types.get(product_name)
+        iter_type = self.source_params['iter_types'].get(product_name)
         if iter_type == None:
-            iter_type = self.iter_types['default']
+            iter_type = self.source_params['iter_types']['default']
 
         for param in params:
-            url = self.source_server + '?' + self.source_params[param]
+            url = self.source_params['source_url'] + '?' + self.source_params['source_params'][param]
             
-            reader = SourceReader(date, product, catalogue, url, self.source_id, login_data)
-            reader.set_beg_time( self.beg_time )
-            reader.set_end_time( self.end_time )
+            reader = SourceReader(date, product, catalogue, url, self.source_params['start_id'], login_data)
+            reader.set_beg_time( self.source_params.get('beg_time') )
+            reader.set_end_time( self.source_params.get('end_time') )
             reader.set_log(self.log)
-            reader.set_limit(self.source_limit_min, self.source_limit_max)
-            reader.set_iter(iter_type, self.source_id)
+            reader.set_limit(self.source_limit_params['source_limit_min'], self.source_limit_params['source_limit_max'])
+            reader.set_iter(iter_type, self.source_params['start_id'])
             
             while True:
                 result = reader.next_bulk()
