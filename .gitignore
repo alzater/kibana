@@ -1,3 +1,4 @@
 /config/kibana.cfg
+/config/kibana.cfg.old
 *.pyc
 /logs/*
